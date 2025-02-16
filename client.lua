@@ -4,6 +4,12 @@ ESX = exports["es_extended"]:getSharedObject()
 -- Definisci la variabile globale 'lib' per accedere agli export di ox_lib
 lib = exports.ox_lib
 
+function debugPrint(...)
+    if Config and Config.Debug then
+        print(...)
+    end
+end
+
 function ProgressBarPromise(options)
     local p = promise.new()
     exports.ox_lib:progressBar(options, function(status)
@@ -11,7 +17,6 @@ function ProgressBarPromise(options)
     end)
     return Citizen.Await(p)
 end
-
 
 -- Funzione per caricare un dizionario di animazioni
 function EnsureAnimDict(dict)
@@ -21,18 +26,18 @@ function EnsureAnimDict(dict)
     end
 end
 
--- (Opzionale) Verifica in console gli export disponibili
+-- Verifica in console gli export disponibili
 Citizen.CreateThread(function()
     Wait(1000)
-    print("registerContext:", lib.registerContext)
-    print("showContext:", lib.showContext)
+    debugPrint("registerContext:", lib.registerContext)
+    debugPrint("showContext:", lib.showContext)
 end)
 
 ---------------------------------------------------------------
 -- Fallback per Config.Menus, se non definito (per sicurezza)
 ---------------------------------------------------------------
 if not Config or not Config.Menus then
-    print("Config.Menus non è definito! Uso i valori di default.")
+    debugPrint("Config.Menus non è definito! Uso i valori di default.")
     Config = {
         Menus = {
             Beverage = {
@@ -99,14 +104,14 @@ local lastZoneRotation = nil
 local function AddTargetZone(veh, configData)
     local coords = GetOffsetFromEntityInWorldCoords(veh, configData.targetOffset.x, configData.targetOffset.y, configData.targetOffset.z)
     local rotation = GetEntityHeading(veh)
-    print("[TARGET] Aggiungo target in posizione:", coords.x, coords.y, coords.z, "rotazione:", rotation)
+    debugPrint("[TARGET] Aggiungo target in posizione:", coords.x, coords.y, coords.z, "rotazione:", rotation)
     
     exports.ox_target:addBoxZone({
         name = zoneName,
         coords = coords,
         size = configData.targetZoneSize,
         rotation = rotation,
-        debug = true, -- Imposta a false dopo i test
+        debug = Config.Debug,
         options = {
             {
                 name = zoneName,
@@ -133,7 +138,7 @@ end
 
 local function RemoveTargetZone()
     if zoneAdded then
-        print("[TARGET] Rimuovo target")
+        debugPrint("[TARGET] Rimuovo target")
         exports.ox_target:removeZone(zoneName)
         zoneAdded = false
         lastZoneCoords = nil
@@ -173,24 +178,24 @@ Citizen.CreateThread(function()
                 local newCoords = GetOffsetFromEntityInWorldCoords(targetVeh, configData.targetOffset.x, configData.targetOffset.y, configData.targetOffset.z)
                 local newRotation = GetEntityHeading(targetVeh)
                 if not zoneAdded then
-                    print("[TARGET] Veicolo fermo: aggiungo target")
+                    debugPrint("[TARGET] Veicolo fermo: aggiungo target")
                     AddTargetZone(targetVeh, configData)
                 else
                     if Vdist(newCoords.x, newCoords.y, newCoords.z, lastZoneCoords.x, lastZoneCoords.y, lastZoneCoords.z) > 0.1 or rotationChanged(lastZoneRotation, newRotation) then
-                        print("[TARGET] Aggiorno target")
+                        debugPrint("[TARGET] Aggiorno target")
                         RemoveTargetZone()
                         AddTargetZone(targetVeh, configData)
                     end
                 end
             else
                 if zoneAdded then
-                    print("[TARGET] Veicolo in movimento: rimuovo target")
+                    debugPrint("[TARGET] Veicolo in movimento: rimuovo target")
                     RemoveTargetZone()
                 end
             end
         else
             if zoneAdded then
-                print("[TARGET] Nessun veicolo configurato trovato: rimuovo target")
+                debugPrint("[TARGET] Nessun veicolo configurato trovato: rimuovo target")
                 RemoveTargetZone()
             end
         end
@@ -208,24 +213,24 @@ function ProcessItemESX(item, label, duration, animType)
         -- Proviamo con l'animazione di inchino
         animDict = "amb@world_human_bum_wash@male@high@base"
         animClip = "base"
-        print("Usando animazione BEVERAGE: " .. animDict .. ", " .. animClip)
+        debugPrint("Usando animazione BEVERAGE: " .. animDict .. ", " .. animClip)
         -- Se non funziona, puoi provare decommentando la riga seguente:
         -- animDict = "mp_player_intdrink"; animClip = "intro_bottle"
     elseif animType == "food" then
         animDict = "amb@prop_human_bbq@male@idle_a"
         animClip = "idle_a"
-        print("Usando animazione FOOD: " .. animDict .. ", " .. animClip)
+        debugPrint("Usando animazione FOOD: " .. animDict .. ", " .. animClip)
     else
-        print("Animazione non definita per: " .. label)
+        debugPrint("Animazione non definita per: " .. label)
         return
     end
 
-    print("Carico dizionario animazione: " .. animDict)
+    debugPrint("Carico dizionario animazione: " .. animDict)
     RequestAnimDict(animDict)
     while not HasAnimDictLoaded(animDict) do
         Citizen.Wait(10)
     end
-    print("Dizionario caricato: " .. animDict)
+    debugPrint("Dizionario caricato: " .. animDict)
 
     ESX.UI.Menu.CloseAll()
 
@@ -237,10 +242,10 @@ function ProcessItemESX(item, label, duration, animType)
         disable = { move = true, car = true, combat = true },
         anim = { dict = animDict, clip = animClip, flag = 49 },
     }) then 
-        print("ProgressBar Terminata: Triggero l'evento server per dare l'item: " .. item)
+        debugPrint("ProgressBar Terminata: Triggero l'evento server per dare l'item: " .. item)
         TriggerServerEvent("vehicle:giveItem", item, label)
      else 
-        print("ProgressBar Annulata")
+        debugPrint("ProgressBar Annulata")
         exports['dream_notifiche']:Alert("Milano Full RP", "Operazione annullata", 3000, "info")
     end
 end
@@ -276,7 +281,7 @@ function OpenSubMenuESX(category)
         table.insert(elements, { label = "Hamburger", value = "hamburger" })
         table.insert(elements, { label = "Pizza", value = "pizza" })
     else
-        print("Categoria non riconosciuta: " .. tostring(category))
+        debugPrint("Categoria non riconosciuta: " .. tostring(category))
         return
     end
 
