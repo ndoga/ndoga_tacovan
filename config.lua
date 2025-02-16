@@ -33,3 +33,6 @@ Config.Menus = {
         }
     }
 }
+
+-- Abilita/disabilita il debug (true per vedere i messaggi e il box di debug, false per disattivare)
+Config.Debug = false
